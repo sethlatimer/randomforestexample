@@ -1,0 +1,76 @@
+---
+title: "Predictors of Implement and Plan to Implement"
+author: "Stats Group and BCHC"
+date: "August 30, 2016"
+output: pdf_document
+header-includes:
+     - \usepackage{longtable}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(xtable)
+library(pander)
+library(reporttools)
+ library(randomForest)
+library(mi)
+#a switch that hides computations below with the echo argument
+verbosity=T
+```
+
+## Analysis Plan
+For each outcome we would like to identify any salient associations among demogrpahic and institutional variables.  We will use random forests to both measure how good a prediction can be created and to identify which attributes are important for the prediction. We will give descriptive statistics broken down by the 6 levels of the targets.
+
+## Read Data
+Data were downloaded from redcap. 
+```{r readdata}
+  load("~/Box Sync/bchc/bchc.Rdata")
+```
+
+
+#basic summary of retained variables
+```{r  ,results='markup'}
+summary(x)
+```
+
+##Random Forests
+
+Random forests attemps to build a classifier by creating a large number of decision trees from bootstrapped data randomly selecting potential features. A good attribute of this method is its ability function when there are more predictors than observations. Additionally the method is robust against correlated predictors, missing values. The output contains the out of the box(oob) error rate which is the rate of error for ensemble of trees applied to data not used to train the model. That makes the oob error resistant to overfitting.
+
+Models can be calibrated with weights to place more value on correctly identifying either level of the target. We did not do that here so models are scored based on their overall correct prediction. 
+
+###Implementation 
+```{r ,results='markup'}
+ fitimp <- randomForest(imp ~ ., data= x[,-c(2:4)],ntree=500,na.action='na.omit',importance=T)
+fitimp
+varImpPlot(fitimp,type=1)
+```
+
+###QI 
+```{r ,results='markup'}
+ fitqi <- randomForest(qi3 ~ ., data= x[,-c(1,3,4)],ntree=500,na.action='na.omit',importance=T)
+fitqi
+varImpPlot(fitqi,type=1)
+```
+
+
+###four 
+```{r ,results='markup'}
+ fit4 <- randomForest(four ~ ., data= x[,-c(1:2,4,8)],ntree=500,na.action='na.omit',importance=T)
+fit4
+varImpPlot(fit4,type=1)
+```
+
+
+###plan 
+```{r,results='markup'}
+ fitplan <- randomForest(plan ~ ., data= x[,-c(1:3)],ntree=500,na.action='na.omit',importance=T)
+fitplan
+varImpPlot(fitplan,type=1)
+```
+
+
+
+
+
+

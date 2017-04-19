@@ -1,0 +1,386 @@
+
+\documentclass{article}
+\usepackage{pdflscape}
+\usepackage{longtable}
+\usepackage{placeins}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+%\begin{landscape}
+<<echo=FALSE,results=tex>>=
+
+
+
+  
+
+#3)      Provide us the demographic stats on posemo participants: 
+#          RNs, caregivers and pts
+
+#4)      Break out each posemo code for proportion of Nurse, CG and PT
+
+#5)      Descriptives of who prompts specific posemo statements.  
+#          For example, we are guessing nurses start 
+#          most of the praise and affirm statements
+# 
+# 6)      Look at proportion of RIAS variables that 
+#                 “rise and fall” with changes in 
+#                  proportion of posemo talk
+# 
+# 7)      Reciprocity analysis looking at humor to humor; 
+#                 connection to connection; 
+#                 savor/take joy to savor/take joy
+# 
+# Demographic question
+# 1)      We have a postdoc who is interested in 
+#           conversations at EOL by minorities—the 
+#           visits do not have to be coded using our
+#           coding systems.  Can you tell us from our 300 
+#           plus NCC cases, how many of those were
+#           nonwhite and the ethnic breakdown? 
+
+library(lme4)
+library(ggplot2)
+library(nlme)
+library(reporttools)
+library(reshape)
+#setwd("~/Box Sync/Stats/P01 - preliminary analyses/NCC/final/")
+x=read.csv("posemocleaned.csv")
+
+levels(x$Subject)=c("CG","N","OCG","OHCP","Pt")
+x$observation=paste(x$dyad_id,x$date)
+
+xkeep=x
+
+getcounts=function(xx){
+  for(i in unique(x$Behavior)){
+  assign(i,
+  aggregate(xx$Behavior,
+           by = list(xx$observation),
+           FUN=function(xx) max(sum(xx==i),0) )  )
+  
+  }
+
+  #getyer visit level data together
+  xv=data.frame( Connection=if(exists("Connection")) `Connection`$x else 0    ,  
+               CritDisagree=`Criticism-Disagreement`$x ,
+               Distress=if(exists("Distress (CG-PT Only)")) `Distress (CG-PT Only)`$x else 0 ,
+               EmotionalResponse=`Emotional Response`$x,
+               Gratitude=if(exists("Gratitude")) `Gratitude`$x else 0,           
+               Humor=if(exists("Humor")) `Humor`$x else 0,
+               LSPSinfo=`LS-PS Info`$x, 
+               LSPSques=`LS-PS Questions`$x   ,
+               MedInfo=`Med Info`$x,
+               MedQues= `Med Questions`$x     ,
+               Other=Other$x  ,   
+               Partnering= if(exists("Partnering (Nurse Only)")) `Partnering (Nurse Only)`$x else 0 ,
+               PositiveFocus=if(exists("PositiveFocus")) `PositiveFocus`$x else 0, 
+               PraiseAffirm=if(exists("PraiseAffirm")) `PraiseAffirm`$x else 0,
+               SavorTakeJoy= if(exists("SavorTakeJoy")) `SavorTakeJoy`$x else 0,
+               ZeroCode=if(exists("ZeroCode")) `ZeroCode`$x else 0        )
+#Th
+  xv[nrow(xv+1):75,]=0
+    #head(xv)
+  xv
+  
+}    
+
+xv=  getcounts(x)
+x$Subject=as.character(x$Subject)
+xvn= getcounts(x[which(x$Subject=="N"),])
+xvcg=getcounts(x[which(x$Subject=="CG"),])
+xvpt=getcounts(x[which(x$Subject=="Pt"),])
+
+
+
+
+addprops=function(xv){
+    
+props=xv/rowSums(xv)
+colnames(props)=paste0(colnames(props),"Prop")
+xv=cbind(xv,props)
+}
+
+#
+
+xv=addprops(xv)
+
+xvn=addprops(xvn)
+xvcg=addprops(xvcg)
+xvpt=addprops(xvpt)
+
+
+
+#get all three speakers togetgher
+xac=rbind(xvn,xvcg,xvpt)
+xac$speaker=rep(c("nurse","caregiver","patient"),each=75)#carefull using recycling here!!
+xac$nallutterances=rowSums(xv[,1:16]) #and here!!
+write.csv(xac,"posemoagged.csv")
+
+@
+\section{Summary Statistics}
+\subsection{Utterance Counts and Proportions of all Utterances}
+I calculated the per visit count for each utterance type and proprotion of total utterances and proprotion of posemo utterances.
+
+<<echo=False,results=tex>>=
+
+
+tableContinuous(xv[,1:16],prec = 2,cap = "Counts of communication type per Visit, ALL UTTERANCES",lab = "aatable")
+tableContinuous(xv[,17:32],prec = 4,cap = "Proportion of total utterances per Visit, ALL UTTERANCES",lab = "atabled")
+
+
+@
+\clearpage
+<<echo=False,results=tex>>=
+
+
+tableContinuous(xvn[,1:16],prec = 2,cap = "Counts of communication type per Visit, NURSE UTTERANCES ONLY",lab = "aatable")
+tableContinuous(xvn[,17:32],prec = 4,cap = "Proportion of total utterances per Visit, NURSE UTTERANCES ONLY",lab = "atabled")
+
+@
+\clearpage
+<<echo=False,results=tex>>=
+
+
+
+tableContinuous(xvcg[,1:16],prec = 2,cap = "Counts of communication type per Visit, CG UTTERANCES ONLY",lab = "aatable")
+tableContinuous(xvcg[,17:32],prec = 4,cap = "Proportion of total utterances per Visit, CG UTTERANCES ONLY",lab = "atabled")
+
+
+@
+\clearpage
+<<echo=False,results=tex>>=
+
+tableContinuous(xvpt[,1:16],prec = 2,cap = "Counts of communication type per Visit, PT UTTERANCES ONLY",lab = "aatable")
+tableContinuous(xvpt[,17:32],prec = 4,cap = "Proportion of total utterances per Visit, PT  UTTERANCES ONLY",lab = "aafstabled")
+
+
+@
+\clearpage
+\subsection{Proportions of POSEMO utterances}
+<<echo=False,results=tex>>=
+
+
+xvp=xv[,c("Connection","Gratitude","Humor","PositiveFocus","PraiseAffirm","SavorTakeJoy","ZeroCode")]
+xvpp=xvp/rowSums(xvp)
+#xvpp
+colnames(xvpp)=paste0(colnames(xvpp),"Prop")
+tableContinuous(xvpp,prec = 4,cap = "Proportion of Posemo utterances per Visit,All PEOPLE",lab = "atable")
+
+
+
+xvpN=xvn[,c("Connection","Gratitude","Humor","PositiveFocus","PraiseAffirm","SavorTakeJoy","ZeroCode")]
+xvppN=xvpN/rowSums(xvpN)
+colnames(xvppN)=paste0(colnames(xvppN),"Prop")
+tableContinuous(xvppN,prec = 4,cap = "Proportion of Posemo utterances per Visit,NURCE UTTERANCES",lab = "atable")
+
+
+xvpCG=xvcg[,c("Connection","Gratitude","Humor","PositiveFocus","PraiseAffirm","SavorTakeJoy","ZeroCode")]
+xvppCG=xvpCG/rowSums(xvpCG)
+colnames(xvppCG)=paste0(colnames(xvppCG),"Prop")
+tableContinuous(xvppCG,prec = 4,cap = "Proportion of Posemo utterances per Visit, CAREGIVER",lab = "atable")
+
+
+
+
+xvpPT=xvpt[,c("Connection","Gratitude","Humor","PositiveFocus","PraiseAffirm","SavorTakeJoy","ZeroCode")]
+xvppPT=xvpPT/rowSums(xvpPT)
+colnames(xvppPT)=paste0(colnames(xvppPT),"Prop")
+tableContinuous(xvppPT,prec = 4,cap = "Proportion of Posemo utterances per Visit, PAatient",lab = "atable")
+
+
+@
+
+%\end{landscape}
+\clearpage
+
+\subsection{Caregivers demographics}
+
+<<echo=FALSE,results=tex>>=
+#Caregivers
+ids=unique(x$dyad_id)
+xold=x # x really wants to be demographic table.
+
+source("~/Box Sync/Stats/brew/PHC-stats/dataspace/getcher.R")
+forms="patient_and_caregiver_screening_demographic,hospice_patient_information,caregiver_demographic_information"
+events="cg_enroll_arm_2"
+x=getcher(forms,events)
+x=x[which(as.numeric(x$study_id) %in% ids),]
+#dim(x)
+x=x[which(as.numeric(x$study_id)>9999),]
+
+
+source("~/Box Sync/Stats/brew/PHC-stats/dataspace/enrollcleaner.r")
+
+levels(x$hpi_religious.factor)[5]= "5 - Other"
+levels(x$cdi_school.factor)=c( "less than 6"         ,            "7-11 years"  ,                        
+"High school graduate" ,  " Some college "   ,
+"College graduate"  ,         "Some graduateschool",
+"Graduatedegree"     , "Prefer not to answer"           ,     
+ "Missing"   )
+
+tableNominal(x[,c("cdi_gender.factor","cdi_ethnic.factor","cdi_income.factor","cdi_school.factor",
+                  "cdi_race___5.factor","cdi_health.factor")],
+             cap="race ethnicity income and education.")
+
+
+tableContinuous(list(as.numeric(x$cdi_age)),cap = "all caregiver age ")
+
+
+
+@
+
+%\end{landscape}
+\subsection{Nurse demographics}
+<<echo=FALSE,results=tex>>=
+#nurses
+nids=unique(xold$nurse_id)
+
+
+
+n=read.csv("~/Stats/brew/PHC-stats/dataspace/nursedemo2.csv")
+
+
+n=n[which(n$study_id %in% nids ),]
+
+
+source("~/Stats/brew/PHC-stats/dataspace/nursedemocleaner.R")
+
+
+
+tableNominal(n[,c("dq_gender.factor"   ,                                    
+ "dq_hisp.factor"                             ,
+ "dq_race___5.factor"                       , 
+ "dq_wage.factor"                              ,           
+ "dq_care.factor"                               ,          
+ "dq_rel.factor"                                 ,         
+ "dq_hig_edu.factor"                              ,        
+ "dq_nur_edu.factor"                               ,       
+ "dq_cer.factor","nps_affiliation.factor")] 
+ )
+
+#tableContinuous"nps_age" 
+tableContinuous(list(as.numeric(n$dq_age)),cap='nurse age')
+@
+
+\subsection{patient demographics}
+<<echo=FALSE,results=tex>>=
+
+
+tableNominal(x[,c("hpi_gender.factor","cdi_patient_hispanic.factor",
+                  "cdi_patient_ethnic___1.factor","cdi_patient_ethnic___2.factor",
+                  "cdi_patient_ethnic___3.factor","cdi_patient_ethnic___4.factor",
+                  "cdi_patient_ethnic___5.factor","cdi_patient_ethnic___6.factor",
+                  "cdi_patient_ethnic___7.factor","cdi_income.factor","cdi_school.factor",
+                  "cdi_marital.factor","hpi_source.factor","hpi_religious.factor")],
+             cap="patient demographics.")
+#tableContinuous(x[,c("hpi_dob",x$hpi_level)])
+
+
+
+tableContinuous(list(as.numeric(x$hpi_dob)),cap = "Age of Patient")
+
+
+
+
+
+
+
+
+@
+
+
+
+
+
+
+\section{Factor Analysis}
+
+<<echo=False,results=tex,fig=TRUE>>=
+
+library(nFactors)
+myscree=function(MHC,main){
+ev <- eigen(cor(MHC[,-1],use='pairwise.complete.obs')) # get eigenvalues
+ap <- parallel(subject=nrow(MHC),var=ncol(MHC)-1,
+               rep=100,cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS,main=main)
+}
+
+myscree(xvp,"Screeplot for number of components of positive emotion")
+library(psych)
+fit <- factanal(xvp,3)
+
+
+loadingsplot=function(x,main="Positive emotion components loadings"){
+  par(mai=c(2,1,1,1))
+  matplot(x$loadings,type="b",
+        xaxt='n',
+        main=main)
+  axis(side = 1,at = 1:dim(x$loadings)[1], rownames(x$loadings),las=2)
+}
+@
+
+<<echo=False,results=tex,fig=TRUE>>=
+loadingsplot(fit)
+@
+
+\clearpage
+\section{CommunicationClusters}
+
+
+<<echo=FALSE,results=verbatim>>=
+library(mclust)
+#xvpp
+mc1=Mclust(xvpp[-75,],2:9)
+summary(mc1)
+@
+
+<<echo=FALSE,results=tex>>=
+m1tab=mc1$parameters$mean
+print(xtable(m1tab,digits=3,caption="Unstandardized Cluster Means"))
+@
+
+
+<<fig=TRUE,echo=FALSE>>=
+m1tab2=apply(m1tab,1,FUN=function(x)  (x-mean(x))/sd(x))
+par(mar=c(7,1,1,1          ))
+matplot(t(m1tab2[1:2,]),xaxt='n',type='b')
+axis(1,at=1:length(names(xvp)),labels = names(xvp),las=2)
+abline(h=0)
+@
+\clearpage
+<<fig=TRUE,echo=FALSE,height=10,width=8>>=
+
+plot(mc1,'classification',dimins=c(1:2))
+@
+
+
+
+
+<<echo=FALSE,results=tex>>=
+
+x=xkeep
+x=x[which(x$Behavior %in% c("Connection","Gratitude","Humor","PositiveFocus","PraiseAffirm","SavorTakeJoy","ZeroCode") ),]
+x$Behavior=factor(x$Behavior,labels =c( "Connec","Grat","Humor","PosFocus","Praise","SavorJoy","Zero"))
+x$fromto=paste(x$Subject,x$Modifier_1)
+t1=table(x$fromto,x$Behavior)
+xtable(t1,caption,"utterances by fromto")
+xtable(prop.table(t1,1),digits=3,caption = 'utterances by fromto in row proportions')
+
+xtable(prop.table(t1,2),digits=3,caption = 'utterances by fromto in column proportions')
+
+
+
+
+
+
+
+@
+
+
+
+
+
+
+
+\end{document}
